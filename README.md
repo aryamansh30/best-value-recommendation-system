@@ -1,6 +1,6 @@
-# ENOVIA Take-Home Submission: Product Retrieval & Best-Value Recommendation
+# Product Retrieval & Best-Value Recommendation
 
-This repository implements a deterministic-first recommendation system that:
+This repository implements a recommendation system that:
 - accepts natural-language shopping queries,
 - retrieves products from a free/public source (FakeStore API),
 - handles noisy/partial matches,
@@ -8,38 +8,35 @@ This repository implements a deterministic-first recommendation system that:
 - ranks by a transparent best-value formula,
 - returns a shortlist, one best recommendation, and an explanation.
 
-The solution is intentionally simple, readable, and easy to run (CLI + API), with optional GenAI only where it adds value.
 
-## 1. Assignment Requirement Coverage
+## 1. Requirement Coverage
 
-| Assignment item | Implemented in this repo |
+| Required item | Implemented in this repo |
 |---|---|
 | Natural-language input queries | `src/app/query_parser.py` |
-| Use at least one free/public source | FakeStore API in `src/app/retrieval.py` |
-| Retrieve relevant products + handle noisy/partial matches | Retrieval scoring + dedupe + term matching in `src/app/retrieval.py` |
-| Filter + normalize results | `src/app/pipeline.py` + `src/app/normalization.py` |
+| One free/public source | FakeStore API in `src/app/retrieval.py` |
+| Retrieve relevant products and handle noisy matches | Retrieval scoring, dedupe and term matching in `src/app/retrieval.py` |
+| Filter and normalize results | `src/app/pipeline.py` + `src/app/normalization.py` |
 | Best-value ranking | Deterministic weighted scoring in `src/app/ranking.py` |
-| Return shortlist + single recommendation + explanation | `src/app/pipeline.py` + `src/app/explainer.py` |
+| Return shortlist, single recommendation and explanation | `src/app/pipeline.py` + `src/app/explainer.py` |
 | Simple evaluation | `src/app/evaluation.py` writes `evaluation/sample_results.json` and `evaluation/sample_qa.txt` |
-| Runnable code | CLI (`src/app/recommend.py`) and API (`src/app/api.py`) |
 | README with architecture + tradeoffs | This file + `evaluation/assignment_checklist.md` |
 
-Detailed requirement mapping is also in `evaluation/assignment_checklist.md`.
 
 ## 2. Project Structure
 
 - `src/app/query_parser.py`: deterministic parsing for category, budget, intent, and filters.
-- `src/app/retrieval.py`: product retrieval from FakeStore (required source) with optional RapidAPI extension.
+- `src/app/retrieval.py`: product retrieval from FakeStore 
 - `src/app/normalization.py`: canonical product schema normalization.
 - `src/app/ranking.py`: deterministic best-value scoring formula.
 - `src/app/explainer.py`: explanation generation from ranking breakdown.
-- `src/app/pipeline.py`: orchestration of parse -> retrieve -> normalize -> filter -> rank -> explain.
+- `src/app/pipeline.py`: orchestration of parse then retrieve then normalize then filter then rank and then explain.
 - `src/app/recommend.py`: CLI entrypoint.
 - `src/app/api.py`: FastAPI entrypoint (`POST /recommend`).
 - `src/app/evaluation.py`: evaluation runner for assignment queries.
-- `tests/`: unit tests + live integration tests.
+- `tests/`: unit tests and live integration tests.
 
-## 3. Setup (Fast Onboarding)
+## 3. Setup
 
 ### Prerequisites
 - Python 3.10+
@@ -47,17 +44,12 @@ Detailed requirement mapping is also in `evaluation/assignment_checklist.md`.
 
 ### Install
 ```bash
-cd <repo-root>
+cd best-value-recommendation-system
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
 ```
 
-Optional one-command flow with Make:
-```bash
-make setup
-```
 
 ## 4. Run the Application
 
@@ -71,10 +63,6 @@ JSON output:
 PYTHONPATH=src python -m app.recommend --query 'Best t-shirt under $50' --json
 ```
 
-### API
-```bash
-PYTHONPATH=src uvicorn app.api:app --reload
-```
 
 Example request:
 ```bash
@@ -92,11 +80,6 @@ curl -X POST http://127.0.0.1:8000/recommend \
 - Retrieval scoring combines lexical overlap with category-aware matching to suppress unrelated products.
 - Candidate deduplication is applied before ranking.
 
-Why this design:
-- Meets assignment requirement for a public data source.
-- Keeps retrieval understandable and reproducible.
-- Separates retrieval quality concerns from ranking logic.
-
 ### 5.2 Best-value definition (deterministic)
 Each candidate is normalized and scored using weighted components:
 - price efficiency (lower price is better),
@@ -112,13 +95,12 @@ Intent-aware weighting:
 
 This scoring is fully deterministic and explainable in `src/app/ranking.py`.
 
-### 5.3 GenAI boundary (optional, controlled)
-GenAI is **not** used for ranking math, filtering, or price comparison.
+### 5.3 GenAI boundary 
+GenAI is not used for ranking math, filtering, or price comparison.
 
 GenAI is used only as a fallback when deterministic retrieval yields no valid match:
 - synonym expansion to retry retrieval (`src/app/genai.py`, called from `src/app/pipeline.py`).
 
-This follows the assignment guidance: use GenAI where helpful, avoid it in core business logic.
 
 ## 6. Evaluation
 
@@ -137,10 +119,6 @@ Current sample queries (`evaluation/queries.json`):
 2. `Cheapest jewelry under $20`
 3. `Best t-shirt under $50`
 4. `Best laptop under $150` (intentional no-match guardrail)
-
-Note: FakeStore is live data, so exact outputs can vary over time. The checked-in sample artifacts reflect a successful run from this project state (latest captured results in this repo were generated on March 22, 2026).
-
-Baseline comparison note: to satisfy the assignment's baseline-vs-improved example in a stable/reproducible way, see `evaluation/baseline_vs_improved.md` (computed on fixed local fixtures rather than live API snapshots).
 
 ## 7. Tests and Validation Walkthrough
 
@@ -181,14 +159,11 @@ Key variables:
 
 Current limitations:
 - FakeStore dataset is small and category-limited.
-- No persistent local snapshot fallback when network is unavailable.
-- Evaluation is simple (query-level outcomes), not full ranking metrics (e.g., NDCG/MAP).
+- Evaluation is simple (query-level outcomes), not full ranking metrics.
 
 Potential next improvements:
-1. Add richer retrieval features (token BM25/fuzzy scoring calibration).
-2. Add offline snapshot mode for reproducible no-network evaluation.
-3. Add formal ranking metrics and baseline-vs-improved comparisons.
-4. Add broader product sources and confidence-weighted source fusion.
+1. Add richer retrieval features (fuzzy scoring).
+2. Add broader product sources and confidence-weighted source fusion.
 
 ## 10. Useful Commands
 
@@ -198,7 +173,6 @@ make setup
 make test
 make eval
 make recommend QUERY='Best electronics under $150'
-make api
 ```
 
 Direct Python commands:
@@ -206,18 +180,4 @@ Direct Python commands:
 PYTHONPATH=src python -m unittest discover -s tests -v
 PYTHONPATH=src python -m app.evaluation
 PYTHONPATH=src python -m app.recommend --query 'Best electronics under $150'
-PYTHONPATH=src uvicorn app.api:app --reload
-```
-
-## 11. Troubleshooting
-
-If HTTPS calls fail with certificate issues:
-1. Ensure `certifi` is installed (`pip install -r requirements.txt`).
-2. For Python.org macOS builds, run:
-```bash
-open '/Applications/Python 3.10/Install Certificates.command'
-```
-3. If your environment uses a custom CA, set:
-```bash
-SSL_CA_BUNDLE=/absolute/path/to/ca-bundle.pem
 ```
