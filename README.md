@@ -165,7 +165,7 @@ Potential next improvements:
 1. Add richer retrieval features (fuzzy scoring).
 2. Add broader product sources and confidence-weighted source fusion.
 
-## 10. Useful Commands
+## 10. Run Commands
 
 With Makefile:
 ```bash
