@@ -14,7 +14,6 @@ FAKESTORE_CATEGORY_MAP: Dict[str, List[str]] = {
     "electronics": ["electronics"],
     "jewelry": ["jewelery"],
     "clothing": ["men's clothing", "women's clothing"],
-    # Product-type intents that typically live in electronics on FakeStore.
     "headphones": ["electronics"],
     "keyboard": ["electronics"],
     "laptop": ["electronics"],
@@ -30,7 +29,6 @@ class ProductRetriever:
         self._ssl_context = self._build_ssl_context()
         self._fakestore_headers = {
             "Accept": "application/json",
-            # Some networks/CDNs reject urllib's default user agent with 403.
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
@@ -94,7 +92,6 @@ class ProductRetriever:
                     payload = json.loads(response.read().decode("utf-8"))
                     merged.extend(self._adapt_fakestore(payload))
             except urllib.error.HTTPError as exc:
-                # If category endpoint is blocked/not available, fall back to /products route.
                 if exc.code in {403, 404} and "/category/" in request_url:
                     category_errors.append(f"{request_url} -> HTTP {exc.code}")
                     continue
@@ -113,7 +110,6 @@ class ProductRetriever:
                     "Failed to fetch live FakeStore API data. Snapshot fallback is disabled."
                 )
 
-        # If category route calls failed/returned nothing, use documented global route as fallback.
         if not merged:
             fallback_url = self._build_fakestore_global_url(limit=limit, intent=parsed_query.intent)
             request = urllib.request.Request(
@@ -126,7 +122,6 @@ class ProductRetriever:
                     payload = json.loads(response.read().decode("utf-8"))
                     merged.extend(self._adapt_fakestore(payload))
             except urllib.error.HTTPError as exc:
-                # Some proxies block query-string endpoints but allow /products.
                 if exc.code == 403:
                     base_url = self.settings.fakestore_url.split("?", 1)[0].rstrip("/")
                     base_request = urllib.request.Request(

@@ -26,7 +26,7 @@ class Settings:
     request_timeout_sec: int = 15
     ssl_ca_bundle: str = ""
 
-    # Optional model provider switching (not core)
+
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "mistral:latest"
@@ -34,7 +34,7 @@ class Settings:
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
 
-    # Optional RapidAPI source (not core)
+
     use_rapidapi: bool = False
     rapidapi_url: str = "https://real-time-amazon-data.p.rapidapi.com/search"
     rapidapi_host: str = "real-time-amazon-data.p.rapidapi.com"

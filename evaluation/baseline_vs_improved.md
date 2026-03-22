@@ -4,7 +4,7 @@ This section provides the requested baseline-vs-improved comparison in a reprodu
 
 - Baseline: rank filtered candidates by lowest price only.
 - Improved (this project): deterministic weighted best-value score from `src/app/ranking.py` using price efficiency, rating, relevance, review confidence, and discount.
-- Dataset for this comparison: fixed fixture products in `tests/fixtures.py` (used to avoid live API drift).
+- Dataset for this comparison: fixed fixture products embedded in `tests/test_ranking.py` (used to avoid live API drift).
 
 Run context date: March 22, 2026.
 
