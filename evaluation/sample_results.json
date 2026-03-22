@@ -1,0 +1,34 @@
+[
+  {
+    "query": "Best electronics under $150",
+    "best_title": "Silicon Power 256GB SSD 3D NAND A55 SLC Cache Performance Boost SATA III 2.5",
+    "best_price": 109.0,
+    "best_score": 0.483804,
+    "candidates_considered": 4,
+    "explanation": "Top recommendation: 'Silicon Power 256GB SSD 3D NAND A55 SLC Cache Performance Boost SATA III 2.5' at $109.00 within your budget of $150.00. It ranked highest on deterministic best-value scoring (score=0.484) using price efficiency, rating, relevance, review confidence, and discount signals across 4 candidate products. It beat 'WD 4TB Gaming Drive Works with Playstation 4 Portable External Hard Drive' mainly via stronger weighted components: rating=0.350 vs 0.350, price_efficiency=0.030 vs 0.000."
+  },
+  {
+    "query": "Cheapest jewelry under $20",
+    "best_title": "White Gold Plated Princess",
+    "best_price": 9.99,
+    "best_score": 0.9,
+    "candidates_considered": 2,
+    "explanation": "Top recommendation: 'White Gold Plated Princess' at $9.99 within your budget of $20.00. It ranked highest on deterministic best-value scoring (score=0.900) using price efficiency, rating, relevance, review confidence, and discount signals across 2 candidate products. It beat 'Pierced Owl Rose Gold Plated Stainless Steel Double' mainly via stronger weighted components: rating=0.200 vs 0.000, price_efficiency=0.550 vs 0.000."
+  },
+  {
+    "query": "Best t-shirt under $50",
+    "best_title": "MBJ Women's Solid Short Sleeve Boat Neck V",
+    "best_price": 9.85,
+    "best_score": 0.68221,
+    "candidates_considered": 7,
+    "explanation": "Top recommendation: 'MBJ Women's Solid Short Sleeve Boat Neck V' at $9.85 within your budget of $50.00. It ranked highest on deterministic best-value scoring (score=0.682) using price efficiency, rating, relevance, review confidence, and discount signals across 7 candidate products. It beat 'Opna Women's Short Sleeve Moisture' mainly via stronger weighted components: rating=0.350 vs 0.323, price_efficiency=0.282 vs 0.300."
+  },
+  {
+    "query": "Best laptop under $150",
+    "best_title": null,
+    "best_price": null,
+    "best_score": null,
+    "candidates_considered": 0,
+    "explanation": "No product found in the current dataset for 'laptop' within budget $150.00. Deterministic filtering and scoring were not run because no valid candidates matched."
+  }
+]

@@ -1,0 +1,28 @@
+Q1: Best electronics under $150
+Best: Silicon Power 256GB SSD 3D NAND A55 SLC Cache Performance Boost SATA III 2.5
+Price: 109.0
+Score: 0.483804
+Candidates considered: 4
+Explanation: Top recommendation: 'Silicon Power 256GB SSD 3D NAND A55 SLC Cache Performance Boost SATA III 2.5' at $109.00 within your budget of $150.00. It ranked highest on deterministic best-value scoring (score=0.484) using price efficiency, rating, relevance, review confidence, and discount signals across 4 candidate products. It beat 'WD 4TB Gaming Drive Works with Playstation 4 Portable External Hard Drive' mainly via stronger weighted components: rating=0.350 vs 0.350, price_efficiency=0.030 vs 0.000.
+------------------------------------------------------------
+Q2: Cheapest jewelry under $20
+Best: White Gold Plated Princess
+Price: 9.99
+Score: 0.9
+Candidates considered: 2
+Explanation: Top recommendation: 'White Gold Plated Princess' at $9.99 within your budget of $20.00. It ranked highest on deterministic best-value scoring (score=0.900) using price efficiency, rating, relevance, review confidence, and discount signals across 2 candidate products. It beat 'Pierced Owl Rose Gold Plated Stainless Steel Double' mainly via stronger weighted components: rating=0.200 vs 0.000, price_efficiency=0.550 vs 0.000.
+------------------------------------------------------------
+Q3: Best t-shirt under $50
+Best: MBJ Women's Solid Short Sleeve Boat Neck V
+Price: 9.85
+Score: 0.68221
+Candidates considered: 7
+Explanation: Top recommendation: 'MBJ Women's Solid Short Sleeve Boat Neck V' at $9.85 within your budget of $50.00. It ranked highest on deterministic best-value scoring (score=0.682) using price efficiency, rating, relevance, review confidence, and discount signals across 7 candidate products. It beat 'Opna Women's Short Sleeve Moisture' mainly via stronger weighted components: rating=0.350 vs 0.323, price_efficiency=0.282 vs 0.300.
+------------------------------------------------------------
+Q4: Best laptop under $150
+Best: None
+Price: None
+Score: None
+Candidates considered: 0
+Explanation: No product found in the current dataset for 'laptop' within budget $150.00. Deterministic filtering and scoring were not run because no valid candidates matched.
+------------------------------------------------------------
