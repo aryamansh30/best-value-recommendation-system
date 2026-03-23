@@ -4,7 +4,7 @@ This repository implements a recommendation system that:
 - accepts natural-language shopping queries,
 - retrieves products from a local CSV catalog (`data/enhanced_fakestore_products.csv`),
 - handles noisy/partial matches,
-- performs hybrid lexical + semantic retrieval with embedding fallback guardrails,
+- performs hybrid lexical and semantic retrieval with embedding fallback guardrails,
 - filters and normalizes candidates,
 - ranks by a transparent best-value formula,
 - optionally applies LLM re-ranking in A/B mode,
@@ -17,14 +17,13 @@ This repository implements a recommendation system that:
 |---|---|
 | Natural-language input queries | `src/app/query_parser.py` |
 | One source dataset | CSV catalog loader in `src/app/retrieval.py` |
-| Retrieve relevant products and handle noisy matches | Hybrid lexical + semantic retrieval, weighted fusion, and fallback guardrails in `src/app/retrieval.py` |
+| Retrieve relevant products and handle noisy matches | Hybrid lexical and semantic retrieval, weighted fusion, and fallback guardrails in `src/app/retrieval.py` |
 | Filter and normalize results | `src/app/pipeline.py` + `src/app/normalization.py` |
 | Best-value ranking | Deterministic weighted scoring in `src/app/ranking.py` |
 | Return shortlist, single recommendation and explanation | `src/app/pipeline.py` + `src/app/explainer.py` |
 | Retrieval-augmented grounded explanation (RAG style) | `src/app/pipeline.py` + `src/app/genai.py` |
 | LLM rerank A/B mode | Optional rerank in `src/app/pipeline.py` + `src/app/genai.py` |
-| Reproducible IR metrics evaluation | `src/app/evaluation.py` + `evaluation/benchmark_queries.jsonl` + `evaluation/qrels.jsonl` |
-| README with architecture + tradeoffs | This file + `evaluation/assignment_checklist.md` |
+| Evaluation | `src/app/evaluation.py` + `evaluation/benchmark_queries.jsonl` + `evaluation/qrels.jsonl` |
 
 
 ## 2. Project Structure
@@ -67,14 +66,6 @@ JSON output:
 PYTHONPATH=src python -m app.recommend --query 'Best t-shirt under $50' --json
 ```
 
-
-Example request:
-```bash
-curl -X POST http://127.0.0.1:8000/recommend \
-  -H 'Content-Type: application/json' \
-  -d '{"query":"Cheapest jewelry under $20","top_k":5}'
-```
-
 ## 5. Design and Reasoning
 
 ### 5.1 Retrieval strategy
@@ -104,9 +95,7 @@ Intent-aware weighting:
 
 This scoring is fully deterministic and explainable in `src/app/ranking.py`.
 
-### 5.3 GenAI boundary
-GenAI is not used as an unchecked decision source.
-
+### 5.3 GenAI 
 GenAI is used in two bounded places:
 - synonym expansion to retry retrieval (`src/app/genai.py`, called from `src/app/pipeline.py`).
 - optional LLM reranking of top-N deterministic candidates (A/B mode with strict JSON validation and fallback).
@@ -117,7 +106,7 @@ If reranking or grounded generation fails/returns invalid payloads, the pipeline
 ### 5.4 RAG evidence + citation contract
 After ranking, the pipeline builds an evidence pack from top ranked products (`E1..E5`) and asks the model to explain using only this context.
 
-Model output contract (strict JSON):
+Model output contract:
 ```json
 {
   "explanation": "Silicon Power SSD is the strongest value at this budget [E1], with WD Gaming Drive as a close alternative [E2].",
