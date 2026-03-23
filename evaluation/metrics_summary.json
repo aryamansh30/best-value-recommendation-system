@@ -1,0 +1,470 @@
+{
+  "generated_at_utc": "2026-03-23T12:49:18.227974+00:00",
+  "run_modes": [
+    "baseline_lexical",
+    "hybrid_semantic",
+    "hybrid_semantic_llm_rerank"
+  ],
+  "query_count": 6,
+  "modes": {
+    "baseline_lexical": {
+      "aggregate_metrics": {
+        "precision_at_k": 0.84,
+        "recall_at_k": 0.84,
+        "ndcg_at_k": 0.931118,
+        "mrr_at_k": 1.0,
+        "ground_truth_coverage": 0.833333
+      },
+      "queries": [
+        {
+          "query_id": "Q1",
+          "query": "Best electronics under $150",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1023",
+            "1024",
+            "1015",
+            "1002",
+            "1016"
+          ],
+          "best_title": "ClickForge Brown Switch Keyboard",
+          "best_product_id": "1023",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 1.0,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q2",
+          "query": "Cheapest jewelry under $20",
+          "intent": "cheapest",
+          "k": 5,
+          "predicted_product_ids": [
+            "1060",
+            "1057",
+            "1059",
+            "1062",
+            "1055"
+          ],
+          "best_title": "GlowHarbor Pearl Stud Earrings",
+          "best_product_id": "1060",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 1.0,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q3",
+          "query": "Best t-shirt under $50",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1063",
+            "1074",
+            "1064",
+            "1066",
+            "1073"
+          ],
+          "best_title": "NorthPeak Essential T-Shirt",
+          "best_product_id": "1063",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 1.0,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q4",
+          "query": "Best laptop under $150",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [],
+          "best_title": null,
+          "best_product_id": null,
+          "explanation_mode": "deterministic",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": null,
+            "recall_at_k": null,
+            "ndcg_at_k": null,
+            "mrr_at_k": null,
+            "has_ground_truth": false
+          }
+        },
+        {
+          "query_id": "Q5",
+          "query": "Cheapest protein bars",
+          "intent": "cheapest",
+          "k": 5,
+          "predicted_product_ids": [
+            "1038",
+            "1033",
+            "1039",
+            "1034",
+            "1036"
+          ],
+          "best_title": "NorthPeak Mini Protein Bars",
+          "best_product_id": "1038",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 0.8,
+            "recall_at_k": 0.8,
+            "ndcg_at_k": 0.824331,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q6",
+          "query": "Best keyboard under $100",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1023",
+            "1024",
+            "1026"
+          ],
+          "best_title": "ClickForge Brown Switch Keyboard",
+          "best_product_id": "1023",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 0.4,
+            "recall_at_k": 0.4,
+            "ndcg_at_k": 0.831257,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        }
+      ]
+    },
+    "hybrid_semantic": {
+      "aggregate_metrics": {
+        "precision_at_k": 0.84,
+        "recall_at_k": 0.84,
+        "ndcg_at_k": 0.923941,
+        "mrr_at_k": 1.0,
+        "ground_truth_coverage": 0.833333
+      },
+      "queries": [
+        {
+          "query_id": "Q1",
+          "query": "Best electronics under $150",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1023",
+            "1015",
+            "1024",
+            "1002",
+            "1016"
+          ],
+          "best_title": "ClickForge Brown Switch Keyboard",
+          "best_product_id": "1023",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 0.964118,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q2",
+          "query": "Cheapest jewelry under $20",
+          "intent": "cheapest",
+          "k": 5,
+          "predicted_product_ids": [
+            "1057",
+            "1060",
+            "1059",
+            "1062",
+            "1055"
+          ],
+          "best_title": "LumaLeaf Minimalist Ring Set",
+          "best_product_id": "1057",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 1.0,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q3",
+          "query": "Best t-shirt under $50",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1063",
+            "1074",
+            "1064",
+            "1066",
+            "1073"
+          ],
+          "best_title": "NorthPeak Essential T-Shirt",
+          "best_product_id": "1063",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 1.0,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q4",
+          "query": "Best laptop under $150",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [],
+          "best_title": null,
+          "best_product_id": null,
+          "explanation_mode": "deterministic",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": null,
+            "recall_at_k": null,
+            "ndcg_at_k": null,
+            "mrr_at_k": null,
+            "has_ground_truth": false
+          }
+        },
+        {
+          "query_id": "Q5",
+          "query": "Cheapest protein bars",
+          "intent": "cheapest",
+          "k": 5,
+          "predicted_product_ids": [
+            "1038",
+            "1033",
+            "1039",
+            "1034",
+            "1036"
+          ],
+          "best_title": "NorthPeak Mini Protein Bars",
+          "best_product_id": "1038",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 0.8,
+            "recall_at_k": 0.8,
+            "ndcg_at_k": 0.824331,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q6",
+          "query": "Best keyboard under $100",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1023",
+            "1024",
+            "1026"
+          ],
+          "best_title": "ClickForge Brown Switch Keyboard",
+          "best_product_id": "1023",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 0.4,
+            "recall_at_k": 0.4,
+            "ndcg_at_k": 0.831257,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        }
+      ]
+    },
+    "hybrid_semantic_llm_rerank": {
+      "aggregate_metrics": {
+        "precision_at_k": 0.84,
+        "recall_at_k": 0.84,
+        "ndcg_at_k": 0.923941,
+        "mrr_at_k": 1.0,
+        "ground_truth_coverage": 0.833333
+      },
+      "queries": [
+        {
+          "query_id": "Q1",
+          "query": "Best electronics under $150",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1023",
+            "1015",
+            "1024",
+            "1002",
+            "1016"
+          ],
+          "best_title": "ClickForge Brown Switch Keyboard",
+          "best_product_id": "1023",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": true,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 0.964118,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q2",
+          "query": "Cheapest jewelry under $20",
+          "intent": "cheapest",
+          "k": 5,
+          "predicted_product_ids": [
+            "1057",
+            "1060",
+            "1059",
+            "1062",
+            "1055"
+          ],
+          "best_title": "LumaLeaf Minimalist Ring Set",
+          "best_product_id": "1057",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": true,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 1.0,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q3",
+          "query": "Best t-shirt under $50",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1063",
+            "1074",
+            "1064",
+            "1066",
+            "1073"
+          ],
+          "best_title": "NorthPeak Essential T-Shirt",
+          "best_product_id": "1063",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": true,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 1.0,
+            "recall_at_k": 1.0,
+            "ndcg_at_k": 1.0,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q4",
+          "query": "Best laptop under $150",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [],
+          "best_title": null,
+          "best_product_id": null,
+          "explanation_mode": "deterministic",
+          "rerank_used": false,
+          "error": null,
+          "metrics": {
+            "precision_at_k": null,
+            "recall_at_k": null,
+            "ndcg_at_k": null,
+            "mrr_at_k": null,
+            "has_ground_truth": false
+          }
+        },
+        {
+          "query_id": "Q5",
+          "query": "Cheapest protein bars",
+          "intent": "cheapest",
+          "k": 5,
+          "predicted_product_ids": [
+            "1038",
+            "1033",
+            "1039",
+            "1034",
+            "1036"
+          ],
+          "best_title": "NorthPeak Mini Protein Bars",
+          "best_product_id": "1038",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": true,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 0.8,
+            "recall_at_k": 0.8,
+            "ndcg_at_k": 0.824331,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        },
+        {
+          "query_id": "Q6",
+          "query": "Best keyboard under $100",
+          "intent": "best_value",
+          "k": 5,
+          "predicted_product_ids": [
+            "1023",
+            "1024",
+            "1026"
+          ],
+          "best_title": "ClickForge Brown Switch Keyboard",
+          "best_product_id": "1023",
+          "explanation_mode": "rag_grounded",
+          "rerank_used": true,
+          "error": null,
+          "metrics": {
+            "precision_at_k": 0.4,
+            "recall_at_k": 0.4,
+            "ndcg_at_k": 0.831257,
+            "mrr_at_k": 1.0,
+            "has_ground_truth": true
+          }
+        }
+      ]
+    }
+  }
+}

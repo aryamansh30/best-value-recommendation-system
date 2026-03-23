@@ -23,6 +23,7 @@ def load_dotenv(path: str = ".env") -> None:
 @dataclass
 class Settings:
     fakestore_url: str = "https://fakestoreapi.com/products"
+    catalog_csv_path: str = "data/enhanced_fakestore_products.csv"
     request_timeout_sec: int = 15
     ssl_ca_bundle: str = ""
 
@@ -33,6 +34,17 @@ class Settings:
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
+    embedding_provider: str = "local"
+    openai_embedding_model: str = "text-embedding-3-small"
+    ollama_embedding_model: str = "nomic-embed-text:latest"
+    local_embedding_model: str = "local-hash-v1"
+    embedding_local_fallback: bool = True
+    embedding_cache_path: str = ".cache/embeddings.json"
+    semantic_weight: float = 0.65
+    lexical_weight: float = 0.35
+    enable_llm_rerank: bool = False
+    llm_rerank_top_n: int = 8
+    llm_rerank_weight: float = 0.30
 
 
     use_rapidapi: bool = False
@@ -46,6 +58,7 @@ class Settings:
         load_dotenv()
         return cls(
             fakestore_url=os.getenv("FAKESTORE_URL", "https://fakestoreapi.com/products"),
+            catalog_csv_path=os.getenv("CATALOG_CSV_PATH", "data/enhanced_fakestore_products.csv"),
             request_timeout_sec=int(os.getenv("REQUEST_TIMEOUT_SEC", "15")),
             ssl_ca_bundle=os.getenv("SSL_CA_BUNDLE", "").strip(),
             llm_provider=os.getenv("LLM_PROVIDER", "ollama").strip().lower(),
@@ -54,6 +67,19 @@ class Settings:
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
             openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            embedding_provider=os.getenv("EMBEDDING_PROVIDER", "local").strip().lower(),
+            openai_embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+            ollama_embedding_model=os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text:latest"),
+            local_embedding_model=os.getenv("LOCAL_EMBEDDING_MODEL", "local-hash-v1"),
+            embedding_local_fallback=os.getenv("EMBEDDING_LOCAL_FALLBACK", "true").strip().lower()
+            in {"1", "true", "yes", "on"},
+            embedding_cache_path=os.getenv("EMBEDDING_CACHE_PATH", ".cache/embeddings.json"),
+            semantic_weight=float(os.getenv("SEMANTIC_WEIGHT", "0.65")),
+            lexical_weight=float(os.getenv("LEXICAL_WEIGHT", "0.35")),
+            enable_llm_rerank=os.getenv("ENABLE_LLM_RERANK", "").strip().lower()
+            in {"1", "true", "yes", "on"},
+            llm_rerank_top_n=max(1, int(os.getenv("LLM_RERANK_TOP_N", "8"))),
+            llm_rerank_weight=float(os.getenv("LLM_RERANK_WEIGHT", "0.30")),
             use_rapidapi=os.getenv("USE_RAPIDAPI", "").strip().lower() in {"1", "true", "yes", "on"},
             rapidapi_url=os.getenv(
                 "RAPIDAPI_URL",

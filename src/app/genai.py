@@ -165,6 +165,95 @@ class GenAIClient:
         cleaned = self._extract_explanation_text(content)
         return cleaned.strip() if cleaned.strip() else content.strip()
 
+    def generate_grounded_explanation(
+        self,
+        query: str,
+        intent: str,
+        evidence: List[Dict[str, Any]],
+        best_product: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if not evidence:
+            return None
+
+        prompt = (
+            "You are generating a shopping recommendation explanation using retrieval-augmented evidence only. "
+            "Rules: Use only the supplied evidence objects, do not add outside facts, and cite evidence IDs inline "
+            "as [E#]. Every factual statement must be backed by at least one citation. "
+            "Return strict JSON with keys: explanation, citations, used_evidence_ids, limitations. "
+            "Citations must be an array of objects with keys: evidence_id, product_id, field, quote_or_value."
+        )
+        payload = {
+            "query": query,
+            "intent": intent,
+            "best_product": best_product or {},
+            "evidence": evidence,
+        }
+        try:
+            content = self._chat(
+                [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": json.dumps(payload)},
+                ],
+                force_json=True,
+            )
+        except GenAIError:
+            return self._deterministic_grounded_fallback(query=query, intent=intent, evidence=evidence)
+
+        if not content:
+            return self._deterministic_grounded_fallback(query=query, intent=intent, evidence=evidence)
+
+        parsed = self._extract_json(content)
+        if not parsed:
+            return self._deterministic_grounded_fallback(query=query, intent=intent, evidence=evidence)
+
+        validated = self._validate_grounded_payload(parsed, evidence)
+        if validated:
+            return validated
+        return self._deterministic_grounded_fallback(query=query, intent=intent, evidence=evidence)
+
+    def rerank_candidates(
+        self,
+        query: str,
+        intent: str,
+        candidates: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        if not candidates:
+            return None
+        candidate_ids = [str(item.get("product_id", "")).strip() for item in candidates if isinstance(item, dict)]
+        if not candidate_ids or any(not product_id for product_id in candidate_ids):
+            return None
+
+        prompt = (
+            "Re-rank shopping candidates using ONLY the provided candidate data and requested intent. "
+            "Do not add outside facts. Return strict JSON with keys: ordered_product_ids, rationale, citations. "
+            "ordered_product_ids must include every provided product_id exactly once in ranked order. "
+            "rationale should be concise text. citations should be optional and may be an array of short strings."
+        )
+        payload = {
+            "query": query,
+            "intent": intent,
+            "candidates": candidates,
+        }
+        try:
+            content = self._chat(
+                [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": json.dumps(payload)},
+                ],
+                force_json=True,
+            )
+        except GenAIError:
+            return self._deterministic_rerank_fallback(candidates)
+        if not content:
+            return self._deterministic_rerank_fallback(candidates)
+        parsed = self._extract_json(content)
+        if not parsed:
+            return self._deterministic_rerank_fallback(candidates)
+        validated = self._validate_rerank_payload(parsed, candidate_ids)
+        if validated:
+            return validated
+        return self._deterministic_rerank_fallback(candidates)
+
     def _chat(self, messages: List[Dict[str, str]], force_json: bool = False) -> Optional[str]:
         provider = self.settings.llm_provider
         if provider == "openai":
@@ -285,3 +374,244 @@ class GenAIClient:
                 if isinstance(value, str) and value.strip():
                     return value
         return stripped
+
+    @staticmethod
+    def _validate_grounded_payload(
+        payload: Dict[str, Any],
+        evidence: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        explanation = payload.get("explanation")
+        raw_citations = payload.get("citations")
+        raw_used_ids = payload.get("used_evidence_ids")
+        limitations = payload.get("limitations", "")
+
+        if not isinstance(explanation, str) or not explanation.strip():
+            return None
+        if not isinstance(raw_citations, list) or not raw_citations:
+            return None
+        if raw_used_ids is None:
+            raw_used_ids = []
+        if not isinstance(raw_used_ids, list):
+            return None
+
+        valid_evidence_ids = {
+            str(item.get("evidence_id", "")).strip()
+            for item in evidence
+            if isinstance(item, dict) and str(item.get("evidence_id", "")).strip()
+        }
+        if not valid_evidence_ids:
+            return None
+
+        citations: List[Dict[str, str]] = []
+        citation_ids: List[str] = []
+        for entry in raw_citations:
+            if not isinstance(entry, dict):
+                return None
+            evidence_id = str(entry.get("evidence_id", "")).strip()
+            product_id = str(entry.get("product_id", "")).strip()
+            field = str(entry.get("field", "")).strip()
+            quote_or_value = str(entry.get("quote_or_value", "")).strip()
+
+            if not evidence_id or evidence_id not in valid_evidence_ids:
+                return None
+            if not product_id or not field or not quote_or_value:
+                return None
+
+            citation_ids.append(evidence_id)
+            citations.append(
+                {
+                    "evidence_id": evidence_id,
+                    "product_id": product_id,
+                    "field": field,
+                    "quote_or_value": quote_or_value,
+                }
+            )
+
+        used_evidence_ids: List[str] = []
+        seen = set()
+        for item in raw_used_ids:
+            evidence_id = str(item).strip()
+            if not evidence_id:
+                continue
+            if evidence_id not in valid_evidence_ids:
+                return None
+            if evidence_id in seen:
+                continue
+            seen.add(evidence_id)
+            used_evidence_ids.append(evidence_id)
+
+        if not used_evidence_ids:
+            for evidence_id in citation_ids:
+                if evidence_id not in seen:
+                    seen.add(evidence_id)
+                    used_evidence_ids.append(evidence_id)
+
+        cleaned_explanation = explanation.strip()
+        if not any(f"[{evidence_id}]" in cleaned_explanation for evidence_id in used_evidence_ids):
+            return None
+        if not all(f"[{evidence_id}]" in cleaned_explanation for evidence_id in citation_ids):
+            return None
+
+        limitations_text = limitations.strip() if isinstance(limitations, str) else ""
+        return {
+            "explanation": cleaned_explanation,
+            "citations": citations,
+            "used_evidence_ids": used_evidence_ids,
+            "limitations": limitations_text,
+        }
+
+    @staticmethod
+    def _validate_rerank_payload(
+        payload: Dict[str, Any],
+        candidate_ids: List[str],
+    ) -> Optional[Dict[str, Any]]:
+        raw_ordered = payload.get("ordered_product_ids")
+        if not isinstance(raw_ordered, list):
+            return None
+        ordered_ids: List[str] = []
+        for entry in raw_ordered:
+            product_id = str(entry).strip()
+            if not product_id:
+                return None
+            ordered_ids.append(product_id)
+        if len(ordered_ids) != len(candidate_ids):
+            return None
+        if len(set(ordered_ids)) != len(ordered_ids):
+            return None
+        if set(ordered_ids) != set(candidate_ids):
+            return None
+
+        rationale = payload.get("rationale", "")
+        if not isinstance(rationale, str):
+            rationale = ""
+
+        raw_citations = payload.get("citations", [])
+        citations: List[str] = []
+        if isinstance(raw_citations, list):
+            for entry in raw_citations:
+                if isinstance(entry, str) and entry.strip():
+                    citations.append(entry.strip())
+
+        return {
+            "ordered_product_ids": ordered_ids,
+            "rationale": rationale.strip(),
+            "citations": citations,
+        }
+
+    @staticmethod
+    def _deterministic_grounded_fallback(
+        query: str,
+        intent: str,
+        evidence: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        if not evidence:
+            return None
+        first = evidence[0]
+        e1 = str(first.get("evidence_id", "E1")).strip() or "E1"
+        p1 = str(first.get("product_id", "")).strip()
+        t1 = str(first.get("title", "")).strip()
+        price1 = first.get("price")
+        rating1 = first.get("rating")
+        reviews1 = first.get("reviews")
+
+        citations: List[Dict[str, str]] = []
+        explanation_bits: List[str] = []
+
+        if p1 and price1 is not None:
+            citations.append(
+                {
+                    "evidence_id": e1,
+                    "product_id": p1,
+                    "field": "price",
+                    "quote_or_value": str(price1),
+                }
+            )
+            explanation_bits.append(f"{t1} is priced at ${price1} [{e1}]")
+
+        if p1 and rating1 is not None:
+            citations.append(
+                {
+                    "evidence_id": e1,
+                    "product_id": p1,
+                    "field": "rating",
+                    "quote_or_value": str(rating1),
+                }
+            )
+            explanation_bits.append(f"with rating {rating1} [{e1}]")
+
+        if p1 and reviews1 is not None:
+            citations.append(
+                {
+                    "evidence_id": e1,
+                    "product_id": p1,
+                    "field": "reviews",
+                    "quote_or_value": str(reviews1),
+                }
+            )
+            explanation_bits.append(f"and {reviews1} reviews [{e1}]")
+
+        if len(evidence) > 1:
+            second = evidence[1]
+            e2 = str(second.get("evidence_id", "E2")).strip() or "E2"
+            p2 = str(second.get("product_id", "")).strip()
+            t2 = str(second.get("title", "")).strip()
+            price2 = second.get("price")
+            if p2 and price2 is not None:
+                citations.append(
+                    {
+                        "evidence_id": e2,
+                        "product_id": p2,
+                        "field": "price",
+                        "quote_or_value": str(price2),
+                    }
+                )
+                explanation_bits.append(f"A close alternative is {t2} at ${price2} [{e2}]")
+
+        if not citations:
+            return None
+
+        explanation = (
+            f"For '{query}' ({intent}), "
+            + "; ".join(explanation_bits)
+            + ". Recommendation is grounded only in retrieved catalog evidence."
+        )
+        used_evidence_ids: List[str] = []
+        seen = set()
+        for entry in citations:
+            evidence_id = entry["evidence_id"]
+            if evidence_id in seen:
+                continue
+            seen.add(evidence_id)
+            used_evidence_ids.append(evidence_id)
+
+        return {
+            "explanation": explanation.strip(),
+            "citations": citations,
+            "used_evidence_ids": used_evidence_ids,
+            "limitations": "Generated from retrieved catalog evidence only.",
+        }
+
+    @staticmethod
+    def _deterministic_rerank_fallback(candidates: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not candidates:
+            return None
+
+        def _score(entry: Dict[str, Any]) -> tuple[float, float, float]:
+            det = float(entry.get("deterministic_score") or 0.0)
+            rating = float(entry.get("rating") or 0.0)
+            price = float(entry.get("price") or 0.0)
+            return (det, rating, -price)
+
+        ordered = sorted(
+            [entry for entry in candidates if isinstance(entry, dict) and str(entry.get("product_id", "")).strip()],
+            key=_score,
+            reverse=True,
+        )
+        ordered_ids = [str(entry["product_id"]).strip() for entry in ordered]
+        if not ordered_ids:
+            return None
+        return {
+            "ordered_product_ids": ordered_ids,
+            "rationale": "Deterministic fallback rerank based on deterministic score, rating, and price.",
+            "citations": ["local_fallback"],
+        }

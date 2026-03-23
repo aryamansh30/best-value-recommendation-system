@@ -21,7 +21,10 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Best-Value Recommendation API",
         version="1.0.0",
-        description="Deterministic recommendation core with selective GenAI synonym fallback for no-match retrieval.",
+        description=(
+            "Hybrid lexical+semantic retrieval with deterministic ranking, optional LLM reranking, "
+            "and grounded GenAI explanations with fallback guardrails."
+        ),
     )
 
     @app.get("/health")

@@ -67,6 +67,9 @@ def normalize_products(raw_products: Iterable[RawProduct]) -> List[NormalizedPro
                 retrieval_score=product.retrieval_score,
                 discount=discount,
                 relevance=product.retrieval_score,
+                lexical_score=product.lexical_score,
+                semantic_score=product.semantic_score,
+                fused_score=product.fused_score or product.retrieval_score,
             )
         )
     return normalized

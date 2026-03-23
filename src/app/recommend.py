@@ -19,6 +19,17 @@ def _print_human_readable(result: dict) -> None:
         f"filters={parsed['filters']}"
     )
     print(f"Candidates considered: {result['candidates_considered']}")
+    print(
+        f"Explanation mode: {result.get('explanation_mode', 'deterministic')} "
+        f"| citations={len(result.get('citations', []))}"
+    )
+    debug = result.get("debug", {})
+    if isinstance(debug, dict):
+        print(
+            f"Rerank -> attempted={debug.get('rerank_attempted', False)}, "
+            f"used={debug.get('rerank_used', False)}, "
+            f"fallback_reason={debug.get('rerank_fallback_reason')}"
+        )
 
     if not shortlist:
         print("No recommendations found after constraints.")
@@ -38,6 +49,13 @@ def _print_human_readable(result: dict) -> None:
         f"{best['title']} | ${best['price']:.2f} | rating={best['rating']:.1f} | score={best['score']:.3f}"
     )
     print(f"\nExplanation: {result['explanation']}")
+    if result.get("citations"):
+        print("\nCitations:")
+        for citation in result["citations"]:
+            print(
+                f"- [{citation['evidence_id']}] {citation['field']}: "
+                f"{citation['quote_or_value']} (product_id={citation['product_id']})"
+            )
 
 
 def main() -> None:

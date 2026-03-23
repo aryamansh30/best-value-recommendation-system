@@ -8,20 +8,24 @@ setup:
 	python3 -m venv $(VENV)
 	$(PIP) install -r requirements.txt
 
-# Runs all tests. Live API tests auto-skip if network/dependency unavailable.
+# Runs all tests.
 test:
 	PYTHONPATH=src $(PYTHON) -m unittest discover -s tests -v
 
-# Deterministic/local tests only (no live FakeStore dependency).
+# Deterministic/local tests only.
 test-unit:
 	PYTHONPATH=src $(PYTHON) -m unittest \
 		tests.test_query_parser \
 		tests.test_retrieval \
+		tests.test_retrieval_semantic \
 		tests.test_ranking \
+		tests.test_embeddings \
 		tests.test_genai \
-		tests.test_pipeline_fallback -v
+		tests.test_pipeline_fallback \
+		tests.test_pipeline_rerank \
+		tests.test_evaluation_metrics -v
 
-# Live integration tests against FakeStore.
+# Integration tests against the local catalog and configured optional providers.
 test-live:
 	PYTHONPATH=src $(PYTHON) -m unittest tests.test_pipeline -v
 

@@ -1,0 +1,6 @@
+{"query_id":"Q1","query":"Best electronics under $150","intent":"best_value","k":5}
+{"query_id":"Q2","query":"Cheapest jewelry under $20","intent":"cheapest","k":5}
+{"query_id":"Q3","query":"Best t-shirt under $50","intent":"best_value","k":5}
+{"query_id":"Q4","query":"Best laptop under $150","intent":"best_value","k":5}
+{"query_id":"Q5","query":"Cheapest protein bars","intent":"cheapest","k":5}
+{"query_id":"Q6","query":"Best keyboard under $100","intent":"best_value","k":5}

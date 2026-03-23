@@ -1,24 +1,32 @@
 from __future__ import annotations
 
+import csv
 import json
 import ssl
+from pathlib import Path
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .config import Settings
+from .embeddings import EmbeddingClient, cosine_similarity, normalize_weight_pair
 from .types import ParsedQuery, RawProduct
 
 FAKESTORE_CATEGORY_MAP: Dict[str, List[str]] = {
     "electronics": ["electronics"],
     "jewelry": ["jewelery"],
     "clothing": ["men's clothing", "women's clothing"],
+    "protein bars": ["grocery"],
+    "grocery": ["grocery"],
+    "beauty": ["beauty"],
     "headphones": ["electronics"],
     "keyboard": ["electronics"],
     "laptop": ["electronics"],
     "phone": ["electronics"],
 }
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class ProductRetriever:
@@ -27,13 +35,9 @@ class ProductRetriever:
     def __init__(self, settings: Settings):
         self.settings = settings
         self._ssl_context = self._build_ssl_context()
-        self._fakestore_headers = {
-            "Accept": "application/json",
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-            ),
-        }
+        self._embedding_client = EmbeddingClient(settings=settings, ssl_context=self._ssl_context)
+        self._catalog_rows: Optional[List[Dict[str, str]]] = None
+        self.last_debug: Dict[str, Any] = {}
 
     def retrieve(
         self,
@@ -46,7 +50,7 @@ class ProductRetriever:
 
         raw_products = self._fetch_fakestore(parsed_query=parsed_query, limit=limit)
         if raw_products:
-            source_trace.append("fakestore")
+            source_trace.append("catalog_csv")
 
         include_rapidapi = use_rapidapi or self.settings.use_rapidapi
         if include_rapidapi:
@@ -55,19 +59,66 @@ class ProductRetriever:
             if rapidapi_products:
                 source_trace.append("rapidapi")
 
-        scored = []
-        for product in raw_products:
-            retrieval_score = self._retrieval_score(product, query_terms, parsed_query.category)
-            product.retrieval_score = retrieval_score
-            scored.append(product)
+        deduped = self._dedupe(raw_products)
+        semantic_scores, semantic_meta = self._semantic_scores(
+            parsed_query=parsed_query,
+            query_terms=query_terms,
+            products=deduped,
+        )
+        lexical_weight, semantic_weight = normalize_weight_pair(
+            lexical_weight=self.settings.lexical_weight,
+            semantic_weight=self.settings.semantic_weight,
+        )
+        force_lexical_only = bool(semantic_meta.get("force_lexical_only"))
+        if force_lexical_only:
+            lexical_weight = 1.0
+            semantic_weight = 0.0
 
-        scored.sort(key=lambda item: item.retrieval_score, reverse=True)
-        deduped = self._dedupe(scored)
+        for product in deduped:
+            lexical_score = self._lexical_retrieval_score(product, query_terms, parsed_query.category)
+            semantic_score = semantic_scores.get(product.product_id, 0.0)
+            fused_score = (
+                lexical_score
+                if force_lexical_only
+                else (lexical_weight * lexical_score + semantic_weight * semantic_score)
+            )
+            product.lexical_score = round(lexical_score, 6)
+            product.semantic_score = round(semantic_score, 6)
+            product.fused_score = round(fused_score, 6)
+            product.retrieval_score = round(fused_score, 6)
+
+        deduped.sort(key=lambda item: item.retrieval_score, reverse=True)
 
         # If user query has meaningful terms but none match dataset content,
         # return empty candidates instead of ranking unrelated products.
         has_terms = any(term.strip() for term in query_terms)
         has_positive = any(product.retrieval_score > 0 for product in deduped)
+        runtime_descriptor = getattr(self._embedding_client, "runtime_descriptor", None)
+        if callable(runtime_descriptor):
+            embedding_provider, embedding_model = runtime_descriptor()
+        else:
+            embedding_provider = getattr(self._embedding_client, "provider", "unknown")
+            embedding_model = getattr(self._embedding_client, "model", "unknown")
+        self.last_debug = {
+            "embedding_provider": embedding_provider,
+            "embedding_model": embedding_model,
+            "semantic_fallback_reason": semantic_meta.get("reason"),
+            "force_lexical_only": force_lexical_only,
+            "lexical_weight": round(lexical_weight, 6),
+            "semantic_weight": round(semantic_weight, 6),
+            "semantic_candidate_count": semantic_meta.get("semantic_candidate_count", 0),
+            "retrieval_breakdown": [
+                {
+                    "product_id": product.product_id,
+                    "title": product.title,
+                    "lexical_score": product.lexical_score,
+                    "semantic_score": product.semantic_score,
+                    "fused_score": product.fused_score,
+                }
+                for product in deduped[: min(len(deduped), limit)]
+            ],
+        }
+
         if has_terms and not has_positive:
             return [], source_trace or ["none"]
 
@@ -77,100 +128,21 @@ class ProductRetriever:
         return deduped[:limit], source_trace or ["none"]
 
     def _fetch_fakestore(self, parsed_query: ParsedQuery, limit: int) -> List[RawProduct]:
-        request_urls = self._build_fakestore_request_urls(parsed_query=parsed_query, limit=limit)
-        merged: List[RawProduct] = []
-        category_errors: List[str] = []
+        rows = self._load_catalog_rows()
+        if not rows:
+            return []
 
-        for request_url in request_urls:
-            request = urllib.request.Request(
-                request_url,
-                headers=self._fakestore_headers,
-                method="GET",
-            )
-            try:
-                with self._urlopen(request) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
-                    merged.extend(self._adapt_fakestore(payload))
-            except urllib.error.HTTPError as exc:
-                if exc.code in {403, 404} and "/category/" in request_url:
-                    category_errors.append(f"{request_url} -> HTTP {exc.code}")
-                    continue
-                raise RuntimeError(self._fakestore_http_error_message(exc)) from exc
-            except urllib.error.URLError as exc:
-                if isinstance(exc.reason, ssl.SSLCertVerificationError):
-                    raise RuntimeError(
-                        "Failed to fetch live FakeStore API data due to SSL certificate verification. "
-                        "Set SSL_CA_BUNDLE in .env to a valid CA file, or install certificates for your Python runtime."
-                    ) from exc
-                raise RuntimeError(
-                    f"Failed to fetch live FakeStore API data ({exc.reason}). Snapshot fallback is disabled."
-                ) from exc
-            except json.JSONDecodeError:
-                raise RuntimeError(
-                    "Failed to fetch live FakeStore API data. Snapshot fallback is disabled."
-                )
+        mapped_categories = self._mapped_categories(parsed_query.category)
+        filtered_rows = rows
+        if mapped_categories:
+            filtered_rows = [row for row in rows if row.get("category", "").strip().lower() in mapped_categories]
+            if not filtered_rows:
+                filtered_rows = rows
 
-        if not merged:
-            fallback_url = self._build_fakestore_global_url(limit=limit, intent=parsed_query.intent)
-            request = urllib.request.Request(
-                fallback_url,
-                headers=self._fakestore_headers,
-                method="GET",
-            )
-            try:
-                with self._urlopen(request) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
-                    merged.extend(self._adapt_fakestore(payload))
-            except urllib.error.HTTPError as exc:
-                if exc.code == 403:
-                    base_url = self.settings.fakestore_url.split("?", 1)[0].rstrip("/")
-                    base_request = urllib.request.Request(
-                        base_url,
-                        headers=self._fakestore_headers,
-                        method="GET",
-                    )
-                    try:
-                        with self._urlopen(base_request) as response:
-                            payload = json.loads(response.read().decode("utf-8"))
-                            merged.extend(self._adapt_fakestore(payload))
-                    except urllib.error.HTTPError as base_exc:
-                        raise RuntimeError(self._fakestore_http_error_message(base_exc)) from base_exc
-                    except urllib.error.URLError as base_exc:
-                        if isinstance(base_exc.reason, ssl.SSLCertVerificationError):
-                            raise RuntimeError(
-                                "Failed to fetch live FakeStore API data due to SSL certificate verification. "
-                                "Set SSL_CA_BUNDLE in .env to a valid CA file, or install certificates for your Python runtime."
-                            ) from base_exc
-                        raise RuntimeError(
-                            "Failed to fetch live FakeStore API data via global and base routes "
-                            f"({base_exc.reason})."
-                        ) from base_exc
-                    except json.JSONDecodeError:
-                        raise RuntimeError(
-                            "Failed to fetch live FakeStore API data. Snapshot fallback is disabled."
-                        )
-                else:
-                    raise RuntimeError(self._fakestore_http_error_message(exc)) from exc
-            except urllib.error.URLError as exc:
-                if isinstance(exc.reason, ssl.SSLCertVerificationError):
-                    raise RuntimeError(
-                        "Failed to fetch live FakeStore API data due to SSL certificate verification. "
-                        "Set SSL_CA_BUNDLE in .env to a valid CA file, or install certificates for your Python runtime."
-                    ) from exc
-                if category_errors:
-                    raise RuntimeError(
-                        "Failed to fetch live FakeStore API data via category routes and global route "
-                        f"({exc.reason}). Category route errors: {', '.join(category_errors)}."
-                    ) from exc
-                raise RuntimeError(
-                    f"Failed to fetch live FakeStore API data ({exc.reason}). Snapshot fallback is disabled."
-                ) from exc
-            except json.JSONDecodeError:
-                raise RuntimeError(
-                    "Failed to fetch live FakeStore API data. Snapshot fallback is disabled."
-                )
-
-        return self._dedupe(merged)
+        products = [self._adapt_catalog_row(row) for row in filtered_rows if self._is_in_stock(row.get("in_stock"))]
+        descending = self._sort_for_intent(parsed_query.intent) == "desc"
+        products.sort(key=lambda item: self._safe_float(item.price), reverse=descending)
+        return self._dedupe(products)[: max(1, limit)]
 
     def _fetch_rapidapi(self, query: str) -> List[RawProduct]:
         if not self.settings.rapidapi_key or not query:
@@ -210,40 +182,6 @@ class ProductRetriever:
             context=self._ssl_context,
         )
 
-    def _build_fakestore_request_urls(self, parsed_query: ParsedQuery, limit: int) -> List[str]:
-        """Use documented FakeStore GET routes for base/category retrieval."""
-        base = self.settings.fakestore_url.split("?", 1)[0].rstrip("/")
-        limit_value = max(1, limit)
-        sort_value = self._sort_for_intent(parsed_query.intent)
-
-        mapped_categories = FAKESTORE_CATEGORY_MAP.get((parsed_query.category or "").lower(), [])
-        if not mapped_categories:
-            params = urllib.parse.urlencode({"limit": str(limit_value), "sort": sort_value})
-            return [f"{base}?{params}"]
-
-        urls: List[str] = []
-        for category in mapped_categories:
-            encoded_category = urllib.parse.quote(category, safe="")
-            params = urllib.parse.urlencode({"sort": sort_value})
-            urls.append(f"{base}/category/{encoded_category}?{params}")
-        return urls
-
-    def _build_fakestore_global_url(self, limit: int, intent: str) -> str:
-        base = self.settings.fakestore_url.split("?", 1)[0].rstrip("/")
-        limit_value = max(1, limit)
-        params = urllib.parse.urlencode({"limit": str(limit_value), "sort": self._sort_for_intent(intent)})
-        return f"{base}?{params}"
-
-    @staticmethod
-    def _fakestore_http_error_message(exc: urllib.error.HTTPError) -> str:
-        if exc.code == 403:
-            return (
-                "Failed to fetch live FakeStore API data (HTTP 403 Forbidden). "
-                "Your network or upstream proxy likely blocks this request; "
-                "try another network/VPN or allow outbound HTTPS to fakestoreapi.com."
-            )
-        return f"Failed to fetch live FakeStore API data (HTTP {exc.code}). Snapshot fallback is disabled."
-
     @staticmethod
     def _sort_for_intent(intent: str) -> str:
         if intent == "cheapest":
@@ -252,27 +190,82 @@ class ProductRetriever:
             return "desc"
         return "desc"
 
-    @staticmethod
-    def _adapt_fakestore(payload: Iterable[Dict[str, object]]) -> List[RawProduct]:
-        products = []
-        for entry in payload:
-            rating = entry.get("rating") if isinstance(entry, dict) else {}
-            if not isinstance(rating, dict):
-                rating = {}
-            products.append(
-                RawProduct(
-                    product_id=str(entry.get("id", "")),
-                    title=str(entry.get("title", "")).strip(),
-                    category=str(entry.get("category", "")).strip().lower(),
-                    price=entry.get("price", 0.0),
-                    rating=rating.get("rate"),
-                    reviews=rating.get("count"),
-                    description=str(entry.get("description", "")).strip(),
-                    source="fakestore",
-                    discount=0.0,
-                )
+    def _load_catalog_rows(self) -> List[Dict[str, str]]:
+        if self._catalog_rows is not None:
+            return self._catalog_rows
+
+        csv_path = self._catalog_path()
+        if not csv_path.exists():
+            raise RuntimeError(
+                f"Catalog CSV not found at '{csv_path}'. Set CATALOG_CSV_PATH in .env to a valid file."
             )
-        return products
+
+        try:
+            with csv_path.open("r", encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle)
+                if reader.fieldnames is None:
+                    raise RuntimeError(f"Catalog CSV '{csv_path}' has no header row.")
+                required = {"id", "title", "price", "category", "rating_rate", "rating_count", "description"}
+                missing = sorted(required.difference(set(reader.fieldnames)))
+                if missing:
+                    raise RuntimeError(
+                        f"Catalog CSV '{csv_path}' is missing required columns: {', '.join(missing)}"
+                    )
+
+                rows: List[Dict[str, str]] = []
+                for row in reader:
+                    if not row:
+                        continue
+                    if not str(row.get("id", "")).strip():
+                        continue
+                    rows.append(row)
+                self._catalog_rows = rows
+                return rows
+        except OSError as exc:
+            raise RuntimeError(f"Failed to read catalog CSV '{csv_path}': {exc}") from exc
+
+    def _catalog_path(self) -> Path:
+        configured = Path(self.settings.catalog_csv_path).expanduser()
+        if configured.is_absolute():
+            return configured
+        return (PROJECT_ROOT / configured).resolve()
+
+    @staticmethod
+    def _mapped_categories(category: Optional[str]) -> List[str]:
+        normalized = (category or "").strip().lower()
+        if not normalized:
+            return []
+        mapped = FAKESTORE_CATEGORY_MAP.get(normalized)
+        if mapped:
+            return [value.strip().lower() for value in mapped]
+        return [normalized]
+
+    @staticmethod
+    def _safe_float(value: object, default: float = 0.0) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _is_in_stock(value: object) -> bool:
+        if value is None:
+            return True
+        return str(value).strip().lower() in {"1", "true", "yes", "y"}
+
+    @staticmethod
+    def _adapt_catalog_row(entry: Dict[str, str]) -> RawProduct:
+        return RawProduct(
+            product_id=str(entry.get("id", "")).strip(),
+            title=str(entry.get("title", "")).strip(),
+            category=str(entry.get("category", "")).strip().lower(),
+            price=entry.get("price", 0.0),
+            rating=entry.get("rating_rate", 0.0),
+            reviews=entry.get("rating_count", 0),
+            description=str(entry.get("description", "")).strip(),
+            source="catalog_csv",
+            discount=entry.get("discount_percent", 0.0),
+        )
 
     @staticmethod
     def _adapt_rapidapi(payload: Dict[str, object]) -> List[RawProduct]:
@@ -308,7 +301,7 @@ class ProductRetriever:
         return products
 
     @staticmethod
-    def _retrieval_score(product: RawProduct, query_terms: List[str], category: str | None) -> float:
+    def _lexical_retrieval_score(product: RawProduct, query_terms: List[str], category: str | None) -> float:
         if not query_terms:
             return 0.2
 
@@ -327,6 +320,84 @@ class ProductRetriever:
             category_boost = 1.0
 
         return 0.5 * overlap_score + 0.3 * title_boost + 0.2 * category_boost
+
+    def _semantic_scores(
+        self,
+        parsed_query: ParsedQuery,
+        query_terms: List[str],
+        products: List[RawProduct],
+    ) -> Tuple[Dict[str, float], Dict[str, Any]]:
+        if not products:
+            return {}, {
+                "force_lexical_only": True,
+                "reason": "no_products",
+                "semantic_candidate_count": 0,
+            }
+
+        if self.settings.semantic_weight <= 0:
+            return {}, {
+                "force_lexical_only": True,
+                "reason": "semantic_weight_disabled",
+                "semantic_candidate_count": 0,
+            }
+        if not self._embedding_client.available():
+            return {}, {
+                "force_lexical_only": True,
+                "reason": "embedding_provider_unavailable",
+                "semantic_candidate_count": 0,
+            }
+
+        query_terms_text = " ".join(term for term in query_terms if term.strip()).strip()
+        query_text = " | ".join(part for part in [parsed_query.query.strip(), query_terms_text] if part).strip()
+        if not query_text:
+            return {}, {
+                "force_lexical_only": True,
+                "reason": "empty_query_text",
+                "semantic_candidate_count": 0,
+            }
+
+        query_vector = self._embedding_client.embed_text(query_text, cache_id=f"query:{query_text}")
+        if not query_vector:
+            return {}, {
+                "force_lexical_only": True,
+                "reason": "query_embedding_unavailable",
+                "semantic_candidate_count": 0,
+            }
+
+        scores: Dict[str, float] = {}
+        for product in products:
+            product_text = self._embedding_text(product)
+            product_vector = self._embedding_client.embed_text(
+                product_text,
+                cache_id=f"product:{product.product_id}",
+            )
+            if not product_vector:
+                continue
+            if len(product_vector) != len(query_vector):
+                continue
+            raw_similarity = cosine_similarity(query_vector, product_vector)
+            similarity_01 = (raw_similarity + 1.0) / 2.0
+            scores[product.product_id] = max(0.0, min(1.0, similarity_01))
+
+        if not scores:
+            return {}, {
+                "force_lexical_only": True,
+                "reason": "no_valid_product_embeddings",
+                "semantic_candidate_count": 0,
+            }
+        return scores, {
+            "force_lexical_only": False,
+            "reason": None,
+            "semantic_candidate_count": len(scores),
+        }
+
+    @staticmethod
+    def _embedding_text(product: RawProduct) -> str:
+        return " | ".join(
+            part.strip()
+            for part in [product.title, product.category, product.description]
+            if part and part.strip()
+        )
 
     @staticmethod
     def _dedupe(products: List[RawProduct]) -> List[RawProduct]:

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "best-value-recommendation-system"
 version = "0.1.0"
-description = "Deterministic product retrieval and best-value recommendation with selective GenAI synonym fallback and live FakeStore data"
+description = "Hybrid lexical+semantic retrieval and best-value recommendation with optional LLM reranking and grounded GenAI explanations"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

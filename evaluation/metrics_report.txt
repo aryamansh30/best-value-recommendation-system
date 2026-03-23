@@ -1,0 +1,26 @@
+Retrieval + Ranking Benchmark Summary
+============================================================
+Generated at (UTC): 2026-03-23T12:49:18.227974+00:00
+Run modes: baseline_lexical, hybrid_semantic, hybrid_semantic_llm_rerank
+
+[baseline_lexical]
+precision@k: 0.84
+recall@k: 0.84
+ndcg@k: 0.931118
+mrr@k: 1.0
+ground_truth_coverage: 0.833333
+
+[hybrid_semantic]
+precision@k: 0.84
+recall@k: 0.84
+ndcg@k: 0.923941
+mrr@k: 1.0
+ground_truth_coverage: 0.833333
+
+[hybrid_semantic_llm_rerank]
+precision@k: 0.84
+recall@k: 0.84
+ndcg@k: 0.923941
+mrr@k: 1.0
+ground_truth_coverage: 0.833333
+
